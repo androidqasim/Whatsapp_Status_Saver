@@ -1,0 +1,21 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="com.techash.ashok.whatsappstatussaver.MainActivity">
+    <item
+        android:id="@+id/menu_rate"
+        android:title="Rate"
+        android:icon="@drawable/ic_grade_black_24dp"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/menu_share"
+        android:title="Share"
+        android:icon="@drawable/ic_share_black_24dp"
+        app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/menu_about"
+        android:title="About"
+        android:icon="@drawable/ic_vector"
+        app:showAsAction="ifRoom" />
+
+</menu>
