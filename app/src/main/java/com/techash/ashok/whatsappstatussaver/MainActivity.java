@@ -1,5 +1,7 @@
 package com.techash.ashok.whatsappstatussaver;
 
+import android.*;
+import android.Manifest;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.DialogInterface;
@@ -8,10 +10,12 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.provider.Settings;
+import android.support.annotation.NonNull;
 import android.support.design.widget.TabLayout;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 
@@ -39,96 +43,37 @@ import com.google.android.gms.ads.reward.RewardItem;
 import com.google.android.gms.ads.reward.RewardedVideoAd;
 import com.google.android.gms.ads.reward.RewardedVideoAdListener;
 
+import java.util.ArrayList;
+import java.util.Objects;
+
 public class MainActivity extends AppCompatActivity {
 
+    public static final int REQUEST_GROUP_PERMISSION = 666;
+    public static int REQUEST_READ_STORAGE = 125;
+    public static int REQUEST_WRITE_STORAGE = 225;
+    PermissionUtil permissionUtil;
     Toolbar toolbar;
     TabLayout tabLayout;
     ViewPager viewPager;
     view_pager_adapter pager_adapter;
     InterstitialAd mInterstitialAd;
-    private static final int EXTERNAL_STORAGE_PERMISSION_CONSTANT = 100;
-    private static final int REQUEST_PERMISSION_SETTING = 101;
-    private boolean sentToSettings = false;
-    private SharedPreferences permissionStatus;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         this.requestWindowFeature(Window.FEATURE_NO_TITLE);
         this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         setContentView(R.layout.activity_main);
-
-
-        if (ActivityCompat.checkSelfPermission(MainActivity.this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-            if (ActivityCompat.shouldShowRequestPermissionRationale(MainActivity.this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-                //Show Information about why you need the permission
-                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-                builder.setTitle("Need Storage Permission");
-                builder.setMessage("This app needs storage permission.");
-                builder.setPositiveButton("Grant", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        dialog.cancel();
-                        ActivityCompat.requestPermissions(MainActivity.this, new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, EXTERNAL_STORAGE_PERMISSION_CONSTANT);
-                    }
-                });
-                builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        dialog.cancel();
-                    }
-                });
-                builder.show();
-            } else if (permissionStatus.getBoolean(android.Manifest.permission.WRITE_EXTERNAL_STORAGE,false)) {
-                //Previously Permission Request was cancelled with 'Dont Ask Again',
-                // Redirect to Settings after showing Information about why you need the permission
-                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-                builder.setTitle("Need Storage Permission");
-                builder.setMessage("This app needs storage permission.");
-                builder.setPositiveButton("Grant", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        dialog.cancel();
-                        sentToSettings = true;
-                        Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                        Uri uri = Uri.fromParts("package", getPackageName(), null);
-                        intent.setData(uri);
-                        startActivityForResult(intent, REQUEST_PERMISSION_SETTING);
-                        Toast.makeText(getBaseContext(), "Go to Permissions to Grant Storage", Toast.LENGTH_LONG).show();
-                    }
-                });
-                builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        dialog.cancel();
-                    }
-                });
-                builder.show();
-            } else {
-                //just request the permission
-                ActivityCompat.requestPermissions(MainActivity.this, new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, EXTERNAL_STORAGE_PERMISSION_CONSTANT);
-            }
-
-            SharedPreferences.Editor editor = permissionStatus.edit();
-            editor.putBoolean(android.Manifest.permission.WRITE_EXTERNAL_STORAGE,true);
-            editor.apply();
-
-
-        } else {
-            //You already have the permission, just go ahead.
-            proceedAfterPermission();
-        }
-
-
-
-        toolbar=(Toolbar)findViewById(R.id.toolbar);
+        toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+        permissionUtil = new PermissionUtil(this);
         MobileAds.initialize(getApplicationContext(),
                 "ca-app-pub-7152320266992965~4085348501");
-        tabLayout=(TabLayout)findViewById(R.id.tabs);
-        viewPager=(ViewPager)findViewById(R.id.container);
-        pager_adapter=new view_pager_adapter(getSupportFragmentManager());
-        pager_adapter.add_fragments(new pictures(),"Pictures");
-        pager_adapter.add_fragments(new videos(),"Videos");
+        tabLayout = (TabLayout) findViewById(R.id.tabs);
+        viewPager = (ViewPager) findViewById(R.id.container);
+        pager_adapter = new view_pager_adapter(getSupportFragmentManager());
+        pager_adapter.add_fragments(new pictures(), "Pictures");
+        pager_adapter.add_fragments(new videos(), "Videos");
         viewPager.setAdapter(pager_adapter);
         tabLayout.setupWithViewPager(viewPager);
         mInterstitialAd = new InterstitialAd(this);
@@ -142,63 +87,13 @@ public class MainActivity extends AppCompatActivity {
         });
 
         requestNewInterstitial();
-    }
 
-
-
-    private void proceedAfterPermission() {
-        Toast.makeText(getBaseContext(), "We got the Storage Permission", Toast.LENGTH_LONG).show();
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == EXTERNAL_STORAGE_PERMISSION_CONSTANT) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                //The External Storage Write Permission is granted to you... Continue your left job...
-                proceedAfterPermission();
-            } else {
-                if (ActivityCompat.shouldShowRequestPermissionRationale(MainActivity.this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-                    //Show Information about why you need the permission
-                    AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-                    builder.setTitle("Need Storage Permission");
-                    builder.setMessage("This app needs storage permission");
-                    builder.setPositiveButton("Grant", new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            dialog.cancel();
-
-
-                            ActivityCompat.requestPermissions(MainActivity.this, new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, EXTERNAL_STORAGE_PERMISSION_CONSTANT);
-
-
-                        }
-                    });
-                    builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            dialog.cancel();
-                        }
-                    });
-                    builder.show();
-                } else {
-                    Toast.makeText(getBaseContext(),"Unable to get Permission",Toast.LENGTH_LONG).show();
-                }
-            }
+        if(ContextCompat.checkSelfPermission(this,Manifest.permission.WRITE_EXTERNAL_STORAGE)==PackageManager.PERMISSION_DENIED || ContextCompat.checkSelfPermission(this,Manifest.permission.READ_EXTERNAL_STORAGE)==PackageManager.PERMISSION_DENIED)
+        {
+            requestAllPermissions();
         }
-    }
 
-    @Override
-    protected void onPostResume() {
-        super.onPostResume();
-        if (sentToSettings) {
-            if (ActivityCompat.checkSelfPermission(MainActivity.this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
-                //Got Permission
-                proceedAfterPermission();
-            }
-        }
     }
-
 
     @Override
     public void onBackPressed() {
@@ -227,7 +122,7 @@ public class MainActivity extends AppCompatActivity {
             if (mInterstitialAd.isLoaded())
                 mInterstitialAd.show();
 
-            AlertDialog.Builder ad=new AlertDialog.Builder(MainActivity.this);
+            AlertDialog.Builder ad = new AlertDialog.Builder(MainActivity.this);
             ad.setTitle("Do you Love this app?");
             ad.setMessage("Then Rate Us 5 Stars!");
             ad.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
@@ -255,9 +150,7 @@ public class MainActivity extends AppCompatActivity {
             });
             ad.show();
             return true;
-        }
-        else if(id == R.id.menu_share)
-        {
+        } else if (id == R.id.menu_share) {
             if (mInterstitialAd.isLoaded())
                 mInterstitialAd.show();
 
@@ -268,13 +161,11 @@ public class MainActivity extends AppCompatActivity {
             share.putExtra(Intent.EXTRA_TEXT, "http://play.google.com/store/apps/details?id=" + getApplicationContext().getPackageName());
             startActivity(Intent.createChooser(share, "Share to Friends!"));
             return true;
-        }
-        else if(id == R.id.menu_about)
-        {
+        } else if (id == R.id.menu_about) {
             if (mInterstitialAd.isLoaded())
                 mInterstitialAd.show();
 
-            startActivity(new Intent(MainActivity.this,about.class));
+            startActivity(new Intent(MainActivity.this, about.class));
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -284,6 +175,65 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         viewPager.getAdapter().notifyDataSetChanged();
         super.onResume();
+    }
+
+
+    private void requestGroupPermission(ArrayList<String> permissions)
+    {
+        String[] permissionList=new String[permissions.size()];
+        permissions.toArray(permissionList);
+        ActivityCompat.requestPermissions(MainActivity.this,permissionList,REQUEST_GROUP_PERMISSION);
+    }
+
+    public void requestAllPermissions()
+    {
+        ArrayList<String> permissionsNeeded=new ArrayList<>();
+        ArrayList<String> permissionsAvailable=new ArrayList<>();
+        permissionsNeeded.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+        permissionsNeeded.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        for(String permission: permissionsAvailable)
+        {
+            if(ContextCompat.checkSelfPermission(this,permission)!=PackageManager.PERMISSION_GRANTED)
+                permissionsNeeded.add(permission);
+        }
+        requestGroupPermission(permissionsNeeded);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        switch (requestCode)
+        {
+            case REQUEST_GROUP_PERMISSION:
+                int i=0;
+                String status="";
+                for(String permission : permissions)
+                {
+                    if(grantResults[i]==PackageManager.PERMISSION_GRANTED)
+                        status="GRANTED";
+                    else
+                    {
+                        status="DENIED";
+                    }
+                    i++;
+                }
+                if(status.equals("DENIED"))
+                {
+                    Toast.makeText(this, "Please allow all permission in your app settings",Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, "Please allow all permission in your app settings",Toast.LENGTH_SHORT).show();
+                    Intent intent=new Intent();
+                    intent.setAction(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                    Uri uri=Uri.fromParts("package",this.getPackageName(),null);
+                    intent.setData(uri);
+                    this.startActivity(intent);
+                }
+                else if (status.equals("GRANTED"))
+                {
+                    finish();
+                    startActivity(getIntent());
+                }
+                break;
+        }
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
 
 

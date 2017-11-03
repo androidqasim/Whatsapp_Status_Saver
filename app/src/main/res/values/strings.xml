@@ -1,5 +1,8 @@
 <resources>
     <string name="app_name">WA Status Saver</string>
     <string name="banner_ad_unit_id">ca-app-pub-7152320266992965/4953978559</string>
+    <string name="permission_preference">PERMISSION_PREFERENCE</string>
+    <string name="permission_read_storage">PERMISSION_READ_STORAGE</string>
+    <string name="permission_write_storage">PERMISSION_WRITE_STORAGE</string>
 
 </resources>
